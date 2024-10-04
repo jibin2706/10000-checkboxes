@@ -1,0 +1,13 @@
+FROM oven/bun:1.1.25
+
+# Copy the lock and package file
+COPY bun.lockb . 
+COPY packages/server/package.json . 
+
+# Install dependencies
+RUN bun install
+
+# Copy your source code
+COPY packages/server . 
+
+CMD ["bun", "index.ts"]
