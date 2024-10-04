@@ -14,12 +14,15 @@ const httpServer = Bun.serve({
   },
 });
 
-const wsServer = Bun.serve<{ doc: WSSharedDoc }>({
+const wsServer = Bun.serve<{ room: string; doc: WSSharedDoc }>({
   port: 3001,
   fetch(req, server) {
-    if (server.upgrade(req)) {
-      return;
+    const room = new URL(req.url).pathname;
+    if (!room) {
+      return new Response("Invalid Room", { status: 500 });
     }
+    const success = server.upgrade(req, { data: { room } });
+    if (success) return undefined;
     return new Response("Upgrade failed", { status: 500 });
   },
   websocket: {
@@ -27,9 +30,10 @@ const wsServer = Bun.serve<{ doc: WSSharedDoc }>({
       messageListener(ws, ws.data.doc, new Uint8Array(message));
     },
     open(ws) {
-      const doc = getYDoc("default_doc_name", true);
+      const doc = getYDoc(ws.data.room, true);
       doc.conns.set(ws, new Set());
-      ws.data = { doc };
+      console.log(`room: ${ws.data.room} users: ${doc.conns.size}`);
+      ws.data = { ...ws.data, doc };
       syncStep1(doc, ws);
     },
     close(ws, code, message) {
