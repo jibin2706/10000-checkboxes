@@ -6,24 +6,21 @@ import {
   WSSharedDoc,
 } from "./lib/y-websocket/utils.cjs";
 
-const httpServer = Bun.serve({
+const server = Bun.serve<{ room: string; doc: WSSharedDoc }>({
   port: 3000,
-  fetch(req) {
-    console.log(req.method);
-    return new Response("Hello world!!!");
-  },
-});
-
-const wsServer = Bun.serve<{ room: string; doc: WSSharedDoc }>({
-  port: 3001,
   fetch(req, server) {
-    const room = new URL(req.url).pathname;
-    if (!room) {
-      return new Response("Invalid Room", { status: 500 });
+    const url = new URL(req.url);
+    if (url.pathname === "/") return new Response("Hello world!!!");
+    if (url.pathname.split("/")[1] === "yjs") {
+      const room = url.pathname.split("/")[2];
+      if (!room) {
+        return new Response("Invalid Room", { status: 500 });
+      }
+      const success = server.upgrade(req, { data: { room } });
+      if (success) return undefined;
+      return new Response("Upgrade failed", { status: 500 });
     }
-    const success = server.upgrade(req, { data: { room } });
-    if (success) return undefined;
-    return new Response("Upgrade failed", { status: 500 });
+    return new Response("Not found", { status: 404 });
   },
   websocket: {
     message(ws, message: Buffer) {
@@ -43,5 +40,4 @@ const wsServer = Bun.serve<{ room: string; doc: WSSharedDoc }>({
   },
 });
 
-console.log(`HTTP Server on ${httpServer.url}`);
-console.log(`WebSocket Server on ${wsServer.url}`);
+console.log(`Server on ${server.url}`);
